@@ -3,7 +3,7 @@ name = "speech_preprocess"
 version = "0.1.0"
 description = "Pre-process speech datasets"
 readme = "README.md"
-requires-python = ">=3.14"
+requires-python = ">=3.12"
 authors = [{ name = "Maxime Poli" }]
 dependencies = [
   "joblib>=1.5.3",
@@ -21,6 +21,7 @@ speech-preprocess = "speech_preprocess.__main__:cli"
 [dependency-groups]
 dev = [
   "ipykernel>=7.2.0",
+  "prek>=0.3.13",
 ]
 
 [build-system]

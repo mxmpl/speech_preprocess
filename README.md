@@ -9,19 +9,28 @@ post-processing, duration-based subsampling, and audio segmentation.
 uv sync
 ```
 
-Requires Python 3.14+.
+Requires Python 3.12+.
 
 ## Library
 
-The exported functions live in `preprocess.core`:
+The exported functions live in `speech_preprocess.core`:
 
+- `read_rttm` — read an RTTM file into a Polars DataFrame.
+- `write_rttm` — write a Polars DataFrame back to an RTTM file.
 - `vad_dataset` — run pyannote voice activity detection over a directory of audios.
 - `post_process_dataset` — clean up an RTTM file (drop short turns, merge over short silences, split long turns).
 - `subsample_dataset` — subsample turns of an RTTM file to match a target duration distribution.
 - `segment_dataset` — extract audio chunks from source files according to an RTTM file.
 
 ```python
-from preprocess import vad_dataset, post_process_dataset, subsample_dataset, segment_dataset
+from speech_preprocess import (
+    post_process_dataset,
+    read_rttm,
+    segment_dataset,
+    subsample_dataset,
+    vad_dataset,
+    write_rttm,
+)
 ```
 
 ## CLI
@@ -80,5 +89,5 @@ Cut source audios into segments according to an RTTM file.
 ```sh
 speech-preprocess segment PATH_AUDIOS PATH_RTTM PATH_OUTPUT \
     [--num-zeros 5] \
-    [--extension .wav] \
+    [--extension .wav]
 ```

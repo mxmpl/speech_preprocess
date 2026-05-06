@@ -1,7 +1,8 @@
 import copy
 from collections import defaultdict
+from collections.abc import Callable, Iterable
 from pathlib import Path
-from typing import IO, TYPE_CHECKING, Literal, overload
+from typing import IO, Literal, overload
 
 import numpy as np
 import polars as pl
@@ -14,9 +15,6 @@ from torch.utils.data import Dataset
 from torchcodec.decoders import AudioDecoder
 from torchcodec.encoders import AudioEncoder
 from tqdm import tqdm
-
-if TYPE_CHECKING:
-    from collections.abc import Callable, Iterable
 
 __all__ = ["post_process_dataset", "read_rttm", "segment_dataset", "subsample_dataset", "vad_dataset", "write_rttm"]
 

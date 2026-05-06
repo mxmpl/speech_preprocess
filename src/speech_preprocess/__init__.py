@@ -1,3 +1,3 @@
-from .core import post_process_dataset, segment_dataset, subsample_dataset, vad_dataset
+from .core import post_process_dataset, read_rttm, segment_dataset, subsample_dataset, vad_dataset, write_rttm
 
-__all__ = ["post_process_dataset", "segment_dataset", "subsample_dataset", "vad_dataset"]
+__all__ = ["post_process_dataset", "read_rttm", "segment_dataset", "subsample_dataset", "vad_dataset", "write_rttm"]

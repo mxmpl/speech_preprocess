@@ -19,6 +19,8 @@ repos:
     - id: ruff-check
       args: [ --fix ]
     - id: ruff-format
+      types_or: [python, markdown]
+      args: [ --preview ]
 - repo: https://github.com/astral-sh/uv-pre-commit
   rev: 0.11.10
   hooks:
