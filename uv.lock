@@ -2649,6 +2649,7 @@ dependencies = [
     { name = "polars" },
     { name = "pyannote-audio" },
     { name = "pyannote-core" },
+    { name = "torch" },
     { name = "torchcodec" },
     { name = "tqdm" },
 ]
@@ -2666,6 +2667,7 @@ requires-dist = [
     { name = "polars", specifier = ">=1.40.1" },
     { name = "pyannote-audio", specifier = ">=4.0.4" },
     { name = "pyannote-core", specifier = ">=6.0.1" },
+    { name = "torch", specifier = ">=2.11.0" },
     { name = "torchcodec", specifier = ">=0.11.1" },
     { name = "tqdm", specifier = ">=4.67.3" },
 ]
