@@ -9,6 +9,7 @@ def generate_docs(search_path: str) -> str:
     package = griffe.load(
         next(Path(search_path).iterdir()).name,
         search_paths=[search_path],
+        docstring_parser="google",
     )
     config = {
         **griffe2md.default_config,
