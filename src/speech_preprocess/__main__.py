@@ -5,7 +5,7 @@ from .core import post_process_dataset, segment_dataset, subsample_dataset, vad_
 
 
 def cli() -> None:
-    parser = argparse.ArgumentParser(prog="preprocess")
+    parser = argparse.ArgumentParser(prog="speech-preprocess")
     subparsers = parser.add_subparsers(dest="command", required=True)
 
     p_vad = subparsers.add_parser("vad", help="Run voice activity detection on a dataset")

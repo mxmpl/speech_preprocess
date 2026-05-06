@@ -29,10 +29,10 @@ from preprocess import vad_dataset, post_process_dataset, subsample_dataset, seg
 The package ships a CLI with one subcommand per exported function:
 
 ```sh
-python -m preprocess <command> [options]
+speech-preprocess <command> [options]
 ```
 
-Run `python -m preprocess <command> --help` for the full list of options.
+Run `speech-preprocess <command> --help` for the full list of options.
 
 ### `vad`
 
@@ -40,7 +40,7 @@ Run voice activity detection over a directory of audios and append the detected
 turns to an RTTM file.
 
 ```sh
-python -m preprocess vad PATH_AUDIOS PATH_RTTM \
+speech-preprocess vad PATH_AUDIOS PATH_RTTM \
     [--model pyannote/segmentation-3.0] \
     [--token HF_TOKEN] \
     [--extension .wav]
@@ -53,7 +53,7 @@ silences, and split overly long segments using the longest silence in the
 original annotation.
 
 ```sh
-python -m preprocess post-process PATH_RTTM PATH_POST_PROCESSED_RTTM \
+speech-preprocess post-process PATH_RTTM PATH_POST_PROCESSED_RTTM \
     --min-duration-on 0.5 \
     --min-duration-off 0.2 \
     --max-duration-on 30.0
@@ -66,7 +66,7 @@ uniform distribution over `[min-duration, max-duration]` discretized in
 `n-bins` bins.
 
 ```sh
-python -m preprocess subsample PATH_RTTM PATH_SUBSAMPLED_RTTM \
+speech-preprocess subsample PATH_RTTM PATH_SUBSAMPLED_RTTM \
     --target-hours 100 \
     --min-duration 1.0 \
     --max-duration 30.0 \
@@ -78,7 +78,7 @@ python -m preprocess subsample PATH_RTTM PATH_SUBSAMPLED_RTTM \
 Cut source audios into segments according to an RTTM file.
 
 ```sh
-python -m preprocess segment PATH_AUDIOS PATH_RTTM PATH_OUTPUT \
+speech-preprocess segment PATH_AUDIOS PATH_RTTM PATH_OUTPUT \
     [--num-zeros 5] \
     [--extension .wav] \
 ```
