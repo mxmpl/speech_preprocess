@@ -21,9 +21,10 @@ speech-preprocess = "speech_preprocess.__main__:cli"
 
 [dependency-groups]
 dev = [
+  "griffe>=1.7.3",
+  "griffe2md>=1.3.0",
   "ipykernel>=7.2.0",
   "prek>=0.3.13",
-  "pydoc-markdown>=4.8.2",
 ]
 
 [build-system]

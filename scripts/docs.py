@@ -1,38 +1,34 @@
 import re
-import tempfile
 from pathlib import Path
 
-from pydoc_markdown import PydocMarkdown
-from pydoc_markdown.contrib.loaders.python import PythonLoader
-from pydoc_markdown.contrib.renderers.markdown import MarkdownRenderer
+import griffe
+import griffe2md
 
 
 def generate_docs(search_path: str) -> str:
-    with tempfile.NamedTemporaryFile() as tmp:
-        session = PydocMarkdown(
-            loaders=[PythonLoader(search_path=[search_path])],
-            renderer=MarkdownRenderer(
-                filename=tmp.name,
-                render_module_header=False,
-                insert_header_anchors=False,
-                header_level_by_type={"Function": 3},
-            ),
-        )
-        modules = session.load_modules()
-        session.process(modules)
-        session.render(modules)
-        return Path(tmp.name).read_text(encoding="utf-8")
+    package = griffe.load(
+        next(Path(search_path).iterdir()).name,
+        search_paths=[search_path],
+    )
+    config = {
+        **griffe2md.default_config,
+        "summary": False,
+        "show_root_full_path": False,
+        "show_root_members_full_path": False,
+        "show_object_full_path": False,
+    }
+    return griffe2md.render_object_docs(package, config)  # ty: ignore[invalid-argument-type]
 
 
 def inject_into_readme(search_path: str, readme: str) -> None:
-    """Replace content between pydoc-markdown markers in the README."""
+    """Replace content between griffe markers in the README."""
     docs = generate_docs(search_path)
     content = Path(readme).read_text(encoding="utf-8")
-    pattern = r"(<!-- pydoc-markdown -->)(.*?)(<!-- /pydoc-markdown -->)"
+    pattern = r"(<!-- griffe -->)(.*?)(<!-- /griffe -->)"
     replacement = rf"\1\n{docs}\n\3"
     new_content, count = re.subn(pattern, replacement, content, flags=re.DOTALL)
     if count == 0:
-        raise RuntimeError("Markers not found in README. Add:\n<!-- pydoc-markdown -->\n<!-- /pydoc-markdown -->")
+        raise RuntimeError("Markers not found in README. Add:\n<!-- griffe -->\n<!-- /griffe -->")
     Path(readme).write_text(new_content, encoding="utf-8")
 
 
