@@ -1,4 +1,4 @@
-# preprocess
+# Speech dataset preprocessing
 
 A small toolkit for preparing speech datasets: voice activity detection, RTTM
 post-processing, duration-based subsampling, and audio segmentation.
