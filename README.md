@@ -114,12 +114,12 @@ original annotation.
 
 **Parameters:**
 
-- **path_rttm** (<code>[str](#str) | [Path](#pathlib.Path)</code>) – Input RTTM file (or directory of `.rttm` files) to post-process.
-- **path_post_processed_rttm** (<code>[str](#str) | [Path](#pathlib.Path)</code>) – Output RTTM file; results are appended to it.
-- **min_duration_on** (<code>[float](#float)</code>) – Discard speech segments shorter than this, in seconds.
-- **min_duration_off** (<code>[float](#float)</code>) – Merge consecutive segments separated by a silence shorter than this, in seconds.
-- **max_duration_on** (<code>[float](#float)</code>) – Split segments longer than this, in seconds.
-- **n_jobs** (<code>[int](#int)</code>) – Number of parallel jobs (passed to joblib). ``-1`` uses all CPUs.
+- **path_rttm** (<code>str | Path</code>) – Input RTTM file (or directory of `.rttm` files) to post-process.
+- **path_post_processed_rttm** (<code>str | Path</code>) – Output RTTM file; results are appended to it.
+- **min_duration_on** (<code>float</code>) – Discard speech segments shorter than this, in seconds.
+- **min_duration_off** (<code>float</code>) – Merge consecutive segments separated by a silence shorter than this, in seconds.
+- **max_duration_on** (<code>float</code>) – Split segments longer than this, in seconds.
+- **n_jobs** (<code>int</code>) – Number of parallel jobs (passed to joblib). ``-1`` uses all CPUs.
 
 #### `read_rttm`
 
@@ -131,13 +131,13 @@ Read an RTTM file into a Polars DataFrame.
 
 **Parameters:**
 
-- **source** (<code>[str](#str) | [Path](#pathlib.Path) | [IO](#typing.IO)[[str](#str)] | [IO](#typing.IO)[[bytes](#bytes)] | [bytes](#bytes)</code>) – Path to the RTTM file, or a file-like object / raw bytes.
+- **source** (<code>str | Path | IO[str] | IO[bytes] | bytes</code>) – Path to the RTTM file, or a file-like object / raw bytes.
 
 **Returns:**
 
-- <code>[DataFrame](#polars.DataFrame)</code> – DataFrame with one row per turn and columns matching the ten RTTM fields:
-- <code>[DataFrame](#polars.DataFrame)</code> – Type, File ID, Channel ID, Turn Onset, Turn Duration, Orthography Field,
-- <code>[DataFrame](#polars.DataFrame)</code> – Speaker Type, Speaker Name, Confidence Score, Signal Lookahead Time.
+- <code>DataFrame</code> – DataFrame with one row per turn and columns matching the ten RTTM fields:
+- <code>DataFrame</code> – Type, File ID, Channel ID, Turn Onset, Turn Duration, Orthography Field,
+- <code>DataFrame</code> – Speaker Type, Speaker Name, Confidence Score, Signal Lookahead Time.
 
 #### `segment_dataset`
 
@@ -153,16 +153,16 @@ in the RTTM are returned as a list of unvoiced URIs.
 
 **Parameters:**
 
-- **path_audios** (<code>[str](#str)</code>) – Directory containing the source audio files (16 kHz mono).
-- **path_rttm** (<code>[str](#str)</code>) – RTTM file describing the segments to extract.
-- **path_output** (<code>[str](#str)</code>) – Output directory for the extracted audio segments.
-- **num_zeros** (<code>[int](#int)</code>) – Zero-padding width for the segment index in output filenames.
-- **extension** (<code>[str](#str)</code>) – File extension of the source audios and output segments.
-- **template** (<code>[str](#str)</code>) – Filename template; receives ``uri``, ``i``, ``num_zeros``, and ``extension``.
+- **path_audios** (<code>str</code>) – Directory containing the source audio files (16 kHz mono).
+- **path_rttm** (<code>str</code>) – RTTM file describing the segments to extract.
+- **path_output** (<code>str</code>) – Output directory for the extracted audio segments.
+- **num_zeros** (<code>int</code>) – Zero-padding width for the segment index in output filenames.
+- **extension** (<code>str</code>) – File extension of the source audios and output segments.
+- **template** (<code>str</code>) – Filename template; receives ``uri``, ``i``, ``num_zeros``, and ``extension``.
 
 **Returns:**
 
-- <code>[list](#list)[[str](#str)]</code> – List of URIs for which no turns were found in the RTTM.
+- <code>list[str]</code> – List of URIs for which no turns were found in the RTTM.
 
 #### `subsample_dataset`
 
@@ -178,13 +178,13 @@ duration falls within that interval (inclusive) are eligible.
 
 **Parameters:**
 
-- **path_rttm** (<code>[str](#str) | [Path](#pathlib.Path)</code>) – Input RTTM file to subsample.
-- **path_subsampled_rttm** (<code>[str](#str) | [Path](#pathlib.Path)</code>) – Output RTTM file with the selected turns.
-- **target_hours** (<code>[int](#int)</code>) – Target total duration of the subsampled set, in hours.
-- **min_duration** (<code>[float](#float)</code>) – Lower bound (inclusive) of the duration range, in seconds.
-- **max_duration** (<code>[float](#float)</code>) – Upper bound (inclusive) of the duration range, in seconds.
-- **density** (<code>[Callable](#collections.abc.Callable)[[[float](#float)], [float](#float)]</code>) – Probability density function over durations; defaults to uniform.
-- **n_bins** (<code>[int](#int)</code>) – Number of bins used to discretize the duration distribution.
+- **path_rttm** (<code>str | Path</code>) – Input RTTM file to subsample.
+- **path_subsampled_rttm** (<code>str | Path</code>) – Output RTTM file with the selected turns.
+- **target_hours** (<code>int</code>) – Target total duration of the subsampled set, in hours.
+- **min_duration** (<code>float</code>) – Lower bound (inclusive) of the duration range, in seconds.
+- **max_duration** (<code>float</code>) – Upper bound (inclusive) of the duration range, in seconds.
+- **density** (<code>Callable[[float], float]</code>) – Probability density function over durations; defaults to uniform.
+- **n_bins** (<code>int</code>) – Number of bins used to discretize the duration distribution.
 
 #### `vad_dataset`
 
@@ -199,11 +199,11 @@ segmentation pipeline. Requires 16 kHz mono audio. Runs on GPU when available.
 
 **Parameters:**
 
-- **path_audios** (<code>[str](#str) | [Path](#pathlib.Path)</code>) – Directory containing the audio files to process.
-- **path_rttm** (<code>[str](#str) | [Path](#pathlib.Path)</code>) – Output RTTM file; detected turns are appended to it.
-- **model** (<code>[str](#str)</code>) – Pretrained pyannote segmentation model identifier.
-- **token** (<code>[str](#str) | None</code>) – HuggingFace access token for gated models.
-- **extension** (<code>[str](#str)</code>) – File extension used to discover audios in `path_audios`.
+- **path_audios** (<code>str | Path</code>) – Directory containing the audio files to process.
+- **path_rttm** (<code>str | Path</code>) – Output RTTM file; detected turns are appended to it.
+- **model** (<code>str</code>) – Pretrained pyannote segmentation model identifier.
+- **token** (<code>str | None</code>) – HuggingFace access token for gated models.
+- **extension** (<code>str</code>) – File extension used to discover audios in `path_audios`.
 
 #### `write_rttm`
 
@@ -215,8 +215,8 @@ Write a Polars DataFrame to an RTTM file.
 
 **Parameters:**
 
-- **rttm** (<code>[DataFrame](#polars.DataFrame)</code>) – DataFrame in the format returned by `read_rttm`.
-- **file** (<code>[str](#str) | [Path](#pathlib.Path) | [IO](#typing.IO)[[str](#str)] | [IO](#typing.IO)[[bytes](#bytes)]</code>) – Destination path or file-like object.
+- **rttm** (<code>DataFrame</code>) – DataFrame in the format returned by `read_rttm`.
+- **file** (<code>str | Path | IO[str] | IO[bytes]</code>) – Destination path or file-like object.
 
 ### `post_process_dataset`
 
@@ -233,12 +233,12 @@ original annotation.
 
 **Parameters:**
 
-- **path_rttm** (<code>[str](#str) | [Path](#pathlib.Path)</code>) – Input RTTM file (or directory of `.rttm` files) to post-process.
-- **path_post_processed_rttm** (<code>[str](#str) | [Path](#pathlib.Path)</code>) – Output RTTM file; results are appended to it.
-- **min_duration_on** (<code>[float](#float)</code>) – Discard speech segments shorter than this, in seconds.
-- **min_duration_off** (<code>[float](#float)</code>) – Merge consecutive segments separated by a silence shorter than this, in seconds.
-- **max_duration_on** (<code>[float](#float)</code>) – Split segments longer than this, in seconds.
-- **n_jobs** (<code>[int](#int)</code>) – Number of parallel jobs (passed to joblib). ``-1`` uses all CPUs.
+- **path_rttm** (<code>str | Path</code>) – Input RTTM file (or directory of `.rttm` files) to post-process.
+- **path_post_processed_rttm** (<code>str | Path</code>) – Output RTTM file; results are appended to it.
+- **min_duration_on** (<code>float</code>) – Discard speech segments shorter than this, in seconds.
+- **min_duration_off** (<code>float</code>) – Merge consecutive segments separated by a silence shorter than this, in seconds.
+- **max_duration_on** (<code>float</code>) – Split segments longer than this, in seconds.
+- **n_jobs** (<code>int</code>) – Number of parallel jobs (passed to joblib). ``-1`` uses all CPUs.
 
 ### `read_rttm`
 
@@ -250,13 +250,13 @@ Read an RTTM file into a Polars DataFrame.
 
 **Parameters:**
 
-- **source** (<code>[str](#str) | [Path](#pathlib.Path) | [IO](#typing.IO)[[str](#str)] | [IO](#typing.IO)[[bytes](#bytes)] | [bytes](#bytes)</code>) – Path to the RTTM file, or a file-like object / raw bytes.
+- **source** (<code>str | Path | IO[str] | IO[bytes] | bytes</code>) – Path to the RTTM file, or a file-like object / raw bytes.
 
 **Returns:**
 
-- <code>[DataFrame](#polars.DataFrame)</code> – DataFrame with one row per turn and columns matching the ten RTTM fields:
-- <code>[DataFrame](#polars.DataFrame)</code> – Type, File ID, Channel ID, Turn Onset, Turn Duration, Orthography Field,
-- <code>[DataFrame](#polars.DataFrame)</code> – Speaker Type, Speaker Name, Confidence Score, Signal Lookahead Time.
+- <code>DataFrame</code> – DataFrame with one row per turn and columns matching the ten RTTM fields:
+- <code>DataFrame</code> – Type, File ID, Channel ID, Turn Onset, Turn Duration, Orthography Field,
+- <code>DataFrame</code> – Speaker Type, Speaker Name, Confidence Score, Signal Lookahead Time.
 
 ### `segment_dataset`
 
@@ -272,16 +272,16 @@ in the RTTM are returned as a list of unvoiced URIs.
 
 **Parameters:**
 
-- **path_audios** (<code>[str](#str)</code>) – Directory containing the source audio files (16 kHz mono).
-- **path_rttm** (<code>[str](#str)</code>) – RTTM file describing the segments to extract.
-- **path_output** (<code>[str](#str)</code>) – Output directory for the extracted audio segments.
-- **num_zeros** (<code>[int](#int)</code>) – Zero-padding width for the segment index in output filenames.
-- **extension** (<code>[str](#str)</code>) – File extension of the source audios and output segments.
-- **template** (<code>[str](#str)</code>) – Filename template; receives ``uri``, ``i``, ``num_zeros``, and ``extension``.
+- **path_audios** (<code>str</code>) – Directory containing the source audio files (16 kHz mono).
+- **path_rttm** (<code>str</code>) – RTTM file describing the segments to extract.
+- **path_output** (<code>str</code>) – Output directory for the extracted audio segments.
+- **num_zeros** (<code>int</code>) – Zero-padding width for the segment index in output filenames.
+- **extension** (<code>str</code>) – File extension of the source audios and output segments.
+- **template** (<code>str</code>) – Filename template; receives ``uri``, ``i``, ``num_zeros``, and ``extension``.
 
 **Returns:**
 
-- <code>[list](#list)[[str](#str)]</code> – List of URIs for which no turns were found in the RTTM.
+- <code>list[str]</code> – List of URIs for which no turns were found in the RTTM.
 
 ### `subsample_dataset`
 
@@ -297,13 +297,13 @@ duration falls within that interval (inclusive) are eligible.
 
 **Parameters:**
 
-- **path_rttm** (<code>[str](#str) | [Path](#pathlib.Path)</code>) – Input RTTM file to subsample.
-- **path_subsampled_rttm** (<code>[str](#str) | [Path](#pathlib.Path)</code>) – Output RTTM file with the selected turns.
-- **target_hours** (<code>[int](#int)</code>) – Target total duration of the subsampled set, in hours.
-- **min_duration** (<code>[float](#float)</code>) – Lower bound (inclusive) of the duration range, in seconds.
-- **max_duration** (<code>[float](#float)</code>) – Upper bound (inclusive) of the duration range, in seconds.
-- **density** (<code>[Callable](#collections.abc.Callable)[[[float](#float)], [float](#float)]</code>) – Probability density function over durations; defaults to uniform.
-- **n_bins** (<code>[int](#int)</code>) – Number of bins used to discretize the duration distribution.
+- **path_rttm** (<code>str | Path</code>) – Input RTTM file to subsample.
+- **path_subsampled_rttm** (<code>str | Path</code>) – Output RTTM file with the selected turns.
+- **target_hours** (<code>int</code>) – Target total duration of the subsampled set, in hours.
+- **min_duration** (<code>float</code>) – Lower bound (inclusive) of the duration range, in seconds.
+- **max_duration** (<code>float</code>) – Upper bound (inclusive) of the duration range, in seconds.
+- **density** (<code>Callable[[float], float]</code>) – Probability density function over durations; defaults to uniform.
+- **n_bins** (<code>int</code>) – Number of bins used to discretize the duration distribution.
 
 ### `vad_dataset`
 
@@ -318,11 +318,11 @@ segmentation pipeline. Requires 16 kHz mono audio. Runs on GPU when available.
 
 **Parameters:**
 
-- **path_audios** (<code>[str](#str) | [Path](#pathlib.Path)</code>) – Directory containing the audio files to process.
-- **path_rttm** (<code>[str](#str) | [Path](#pathlib.Path)</code>) – Output RTTM file; detected turns are appended to it.
-- **model** (<code>[str](#str)</code>) – Pretrained pyannote segmentation model identifier.
-- **token** (<code>[str](#str) | None</code>) – HuggingFace access token for gated models.
-- **extension** (<code>[str](#str)</code>) – File extension used to discover audios in `path_audios`.
+- **path_audios** (<code>str | Path</code>) – Directory containing the audio files to process.
+- **path_rttm** (<code>str | Path</code>) – Output RTTM file; detected turns are appended to it.
+- **model** (<code>str</code>) – Pretrained pyannote segmentation model identifier.
+- **token** (<code>str | None</code>) – HuggingFace access token for gated models.
+- **extension** (<code>str</code>) – File extension used to discover audios in `path_audios`.
 
 ### `write_rttm`
 
@@ -334,8 +334,8 @@ Write a Polars DataFrame to an RTTM file.
 
 **Parameters:**
 
-- **rttm** (<code>[DataFrame](#polars.DataFrame)</code>) – DataFrame in the format returned by `read_rttm`.
-- **file** (<code>[str](#str) | [Path](#pathlib.Path) | [IO](#typing.IO)[[str](#str)] | [IO](#typing.IO)[[bytes](#bytes)]</code>) – Destination path or file-like object.
+- **rttm** (<code>DataFrame</code>) – DataFrame in the format returned by `read_rttm`.
+- **file** (<code>str | Path | IO[str] | IO[bytes]</code>) – Destination path or file-like object.
 
 
 <!-- /griffe -->

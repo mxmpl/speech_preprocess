@@ -18,7 +18,8 @@ def generate_docs(search_path: str) -> str:
         "show_root_members_full_path": False,
         "show_object_full_path": False,
     }
-    return griffe2md.render_object_docs(package, config)  # ty: ignore[invalid-argument-type]
+    md = griffe2md.render_object_docs(package, config)  # ty: ignore[invalid-argument-type]
+    return re.sub(r"\[([^\]]+)\]\(#[^)]+\)", r"\1", md)
 
 
 def inject_into_readme(search_path: str, readme: str) -> None:
