@@ -310,6 +310,26 @@ def post_process_dataset(
 # --------------
 
 
+def _subsample_without_density(
+    array: Iterable[float],
+    target: int,
+    *,
+    lower: float,
+    upper: float,
+) -> list[int] | tuple[list[int], np.ndarray]:
+    indices = []
+    total = 0
+    for i, value in enumerate(array):
+        if value < lower or value > upper:
+            continue
+        if total + value <= target:
+            total += value
+            indices.append(i)
+        else:
+            break
+    return indices, np.array([[total], [target]])
+
+
 @overload
 def subsample(
     array: Iterable[float],
@@ -317,7 +337,7 @@ def subsample(
     *,
     lower: float,
     upper: float,
-    density: Callable[[float], float],
+    density: Callable[[float], float] | None,
     n_bins: int,
     return_counts: Literal[False] = False,
 ) -> list[int]: ...
@@ -330,7 +350,7 @@ def subsample(
     *,
     lower: float,
     upper: float,
-    density: Callable[[float], float],
+    density: Callable[[float], float] | None,
     n_bins: int,
     return_counts: Literal[True] = True,
 ) -> tuple[list[int], np.ndarray]: ...
@@ -342,28 +362,32 @@ def subsample(
     *,
     lower: float,
     upper: float,
-    density: Callable[[float], float],
+    density: Callable[[float], float] | None,
     n_bins: int,
     return_counts: bool = False,
 ) -> list[int] | tuple[list[int], np.ndarray]:
-    bin_width = (upper - lower) / n_bins
-    centers = [lower + (i + 0.5) * bin_width for i in range(n_bins)]
-    weights = [max(density(c), 0.0) for c in centers]
-    norm = sum(w * c for w, c in zip(weights, centers, strict=True))
-    if norm <= 0:
-        raise ValueError("density integrates to zero over [lower, upper]")
-    scale = target / norm
-    bin_counts, per_bin_count = [0] * n_bins, [round(w * scale) for w in weights]
-    indices = []
-    for i, value in enumerate(array):
-        if value < lower or value > upper:
-            continue
-        bin_idx = min(int((value - lower) / bin_width), n_bins - 1)
-        if bin_counts[bin_idx] < per_bin_count[bin_idx]:
-            bin_counts[bin_idx] += 1
-            indices.append(i)
+    if density is None:
+        indices, fitness = _subsample_without_density(array, target, lower=lower, upper=upper)
+    else:
+        bin_width = (upper - lower) / n_bins
+        centers = [lower + (i + 0.5) * bin_width for i in range(n_bins)]
+        weights = [max(density(c), 0.0) for c in centers]
+        norm = sum(w * c for w, c in zip(weights, centers, strict=True))
+        if norm <= 0:
+            raise ValueError("density integrates to zero over [lower, upper]")
+        scale = target / norm
+        bin_counts, per_bin_count = [0] * n_bins, [round(w * scale) for w in weights]
+        indices = []
+        for i, value in enumerate(array):
+            if value < lower or value > upper:
+                continue
+            bin_idx = min(int((value - lower) / bin_width), n_bins - 1)
+            if bin_counts[bin_idx] < per_bin_count[bin_idx]:
+                bin_counts[bin_idx] += 1
+                indices.append(i)
+        fitness = np.vstack((bin_counts, per_bin_count))
     if return_counts:
-        return indices, np.vstack((bin_counts, per_bin_count))
+        return indices, fitness
     return indices
 
 
