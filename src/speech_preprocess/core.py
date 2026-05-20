@@ -11,6 +11,7 @@ from joblib import Parallel, delayed
 from pyannote.audio import Model
 from pyannote.audio.pipelines import VoiceActivityDetection
 from pyannote.core import Annotation, Segment, Timeline
+from pyannote.core.utils.generators import string_generator
 from torch.utils.data import Dataset
 from torchcodec.decoders import AudioDecoder
 from torchcodec.encoders import AudioEncoder
@@ -203,18 +204,42 @@ def cut_long_segments(
     min_duration_on: float | None,
     max_duration_on: float,
 ) -> Annotation:
-    new_segments, segment_to_silences = [], map_segment_to_silences(original, active)
-    for seg in active.itersegments():
+    new_segments, new_labels, segment_to_silences = [], [], map_segment_to_silences(original, active)
+    for seg, label in active:
         silences = segment_to_silences[seg]
-        new_segments += list(split_by_silence(seg, silences, min_duration_on, max_duration_on).segments_list_)
+        segments_list = list(split_by_silence(seg, silences, min_duration_on, max_duration_on).segments_list_)
+        new_segments += segments_list
+        new_labels += [label] * len(segments_list)
     annotation = Annotation(uri=original.uri)
-    for i, segment in enumerate(new_segments):
-        annotation[segment, i] = "SPEECH"
+    for i, (segment, label) in enumerate(zip(new_segments, new_labels, strict=True)):
+        annotation[segment, i] = label
     return annotation
 
 
 def remove_long_silences(annotation: Annotation, min_duration_off: float) -> Annotation:
-    return annotation.support(collar=min_duration_off)
+    """Like ``annotation.support(min_duration_off)`` but two same-label segments are merged only
+    if the resulting segment does not overlap with any segment from another label's timeline."""
+    label_timelines = {label: annotation.label_timeline(label, copy=False) for label in annotation.labels()}
+    result = annotation.empty()
+    generator = string_generator()
+    for label, own in label_timelines.items():
+        others = Timeline(
+            segments=(seg for lab, tl in label_timelines.items() if lab != label for seg in tl),
+            uri=annotation.uri,
+        )
+        own_segments = own.segments_list_
+        new_segment = own_segments[0]
+        for segment in own_segments[1:]:
+            gap = segment ^ new_segment
+            if not gap or gap.duration < min_duration_off:
+                merged = new_segment | segment
+                if not any(merged.intersects(o) for o in others):
+                    new_segment = merged
+                    continue
+            result[new_segment, next(generator)] = label
+            new_segment = segment
+        result[new_segment, next(generator)] = label
+    return result
 
 
 def remove_short_segments(annotation: Annotation, min_duration_on: float) -> Annotation:
