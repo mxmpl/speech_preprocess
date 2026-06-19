@@ -1,6 +1,9 @@
 import copy
+import json
+import math
+import os
 from collections import defaultdict
-from collections.abc import Callable, Iterable
+from collections.abc import Callable, Iterable, Sequence
 from pathlib import Path
 from typing import IO, Literal, overload
 
@@ -13,11 +16,33 @@ from pyannote.audio.pipelines import VoiceActivityDetection
 from pyannote.core import Annotation, Segment, Timeline
 from pyannote.core.utils.generators import string_generator
 from torch.utils.data import Dataset
-from torchcodec.decoders import AudioDecoder
+from torchcodec.decoders import AudioDecoder, WavDecoder
 from torchcodec.encoders import AudioEncoder
 from tqdm import tqdm
 
 __all__ = ["post_process_dataset", "read_rttm", "segment_dataset", "subsample_dataset", "vad_dataset", "write_rttm"]
+
+
+def split_for_distributed[T](sequence: Sequence[T]) -> Sequence[T]:
+    if "SLURM_NTASKS" not in os.environ:
+        return sequence
+    rank, world_size = int(os.environ["SLURM_PROCID"]), int(os.environ["SLURM_NTASKS"])
+    array_id, num_arrays = int(os.getenv("SLURM_ARRAY_TASK_ID", "0")), int(os.getenv("SLURM_ARRAY_TASK_COUNT", "1"))
+    if "SLURM_ARRAY_TASK_ID" in os.environ:
+        assert os.environ["SLURM_ARRAY_TASK_MIN"] == "0"
+        assert int(os.environ["SLURM_ARRAY_TASK_MAX"]) == num_arrays - 1
+
+    n_total = len(sequence)  # Split by array first
+    files_per_array = math.ceil(n_total / num_arrays)
+    start = array_id * files_per_array
+    end = min(start + files_per_array, n_total)
+    sequence = sequence[start:end]
+
+    n_local = len(sequence)  # Then split by rank within each array
+    files_per_rank = math.ceil(n_local / world_size)
+    start = rank * files_per_rank
+    end = min(start + files_per_rank, n_local)
+    return sequence[start:end]
 
 
 # ------------
@@ -31,11 +56,13 @@ SAMPLE_RATE: int = 16_000
 class AudioDataset(Dataset):
     def __init__(self, root: str | Path, *, extension: str) -> None:
         assert extension[0] == ".", "Extension should start with a '.', like in '.wav'"
+        self.extension = extension
         self.paths = sorted(Path(root).rglob(f"*{extension}"))
+        self.uri_to_index = {path.stem: i for i, path in enumerate(self.paths)}
 
-    def __getitem__(self, index: int) -> tuple[str, AudioDecoder]:
+    def __getitem__(self, index: int) -> tuple[str, AudioDecoder | WavDecoder]:
         path = self.paths[index].resolve()
-        decoder = AudioDecoder(path)
+        decoder = WavDecoder(path) if self.extension == ".wav" else AudioDecoder(path)
         assert decoder.metadata.sample_rate == SAMPLE_RATE, f"{path.stem} has {decoder.metadata.sample_rate=}"
         assert decoder.metadata.num_channels == 1, f"{path.stem} is not mono"
         return path.stem, decoder
@@ -433,6 +460,9 @@ def subsample_dataset(
 # ---------------
 
 
+FAILED = Path("./failed.jsonl")
+
+
 def segment_dataset(
     path_audios: str,
     path_rttm: str,
@@ -463,13 +493,22 @@ def segment_dataset(
     unvoiced = []
     rttm = read_rttm(path_rttm).with_columns((pl.col("Turn Onset") + pl.col("Turn Duration")).alias("Turn Offset"))
     dataset = AudioDataset(path_audios, extension=extension)
-    for uri, decoder in tqdm(dataset):
-        segments = rttm.filter(pl.col("File ID") == uri)
-        if segments.height == 0:
-            unvoiced.append(uri)
+    files = split_for_distributed(sorted(rttm["File ID"].unique()))
+    pbar = tqdm(rttm.filter(pl.col("File ID").is_in(files)).group_by("File ID", maintain_order=True), total=len(files))
+    for (uri,), segments in pbar:
+        pbar.set_description(uri)
+        _, decoder = dataset[dataset.uri_to_index[uri]]
         for i, (onset, offset) in enumerate(segments.sort("Turn Onset")[["Turn Onset", "Turn Offset"]].iter_rows()):
-            dest = output / template.format(uri=uri, i=i, num_zeros=num_zeros, extension=extension)
+            lang, year = uri.split("_")[-1], uri[:4]
+            dest = output / lang / year / template.format(uri=uri, i=i, num_zeros=num_zeros, extension=extension)
+            if dest.is_file():
+                continue
             dest.parent.mkdir(parents=True, exist_ok=True)
-            samples = decoder.get_samples_played_in_range(onset, offset)
-            AudioEncoder(samples.data, sample_rate=samples.sample_rate).to_file(dest)
+            try:
+                samples = decoder.get_samples_played_in_range(onset, offset)
+                assert samples.sample_rate == SAMPLE_RATE
+                AudioEncoder(samples.data, sample_rate=SAMPLE_RATE).to_file(dest)
+            except RuntimeError:
+                with FAILED.open("a", encoding="utf-8") as f:
+                    f.write(json.dumps({"uri": uri, "i": i, "onset": onset, "offset": offset}) + "\n")
     return unvoiced
