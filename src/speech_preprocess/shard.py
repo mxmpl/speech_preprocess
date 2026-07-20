@@ -22,7 +22,7 @@ from torchcodec.decoders import AudioDecoder
 from torchcodec.encoders import AudioEncoder
 from tqdm import tqdm
 
-from .core import split_for_distributed
+from .core import SAMPLE_RATE, split_for_distributed
 
 __all__ = ["reindex_shards", "shard_dataset", "write_manifest"]
 
@@ -51,6 +51,13 @@ class NoAudioFileError(Exception):
 
     def __init__(self, source: Path | str, extension: str) -> None:
         super().__init__(f"No file with extension `{extension}` found in {source}.")
+
+
+class ConversionError(Exception):
+    """Failed to transcode an audio file to WAV."""
+
+    def __init__(self, path: Path | str) -> None:
+        super().__init__(f"Failed to convert {path} to WAV.")
 
 
 # ---------
@@ -85,7 +92,8 @@ def bytes_from_archive(archive: Path | str, offset: int, size: int) -> bytes:
 
 def _to_wav_bytes(path: Path) -> bytes:
     samples = AudioDecoder(path).get_all_samples()
-    return AudioEncoder(samples.data, sample_rate=samples.sample_rate).to_tensor("wav").numpy().tobytes()
+    encoder = AudioEncoder(samples.data, sample_rate=samples.sample_rate)
+    return bytes(encoder.to_tensor("wav", sample_rate=SAMPLE_RATE, num_channels=1))
 
 
 # ---------
@@ -172,10 +180,15 @@ def shard_dataset(
     writer = ShardWriter(output, prefix, worker_id(), size)
     for path in tqdm(paths):
         relative = path.relative_to(root)
-        if to_wav:
-            writer.add_bytes(_to_wav_bytes(path), str(relative.with_suffix(".wav")))
-        else:
+        if not to_wav:
             writer.add_file(path, str(relative))
+            continue
+        try:
+            data = _to_wav_bytes(path)
+        except (ValueError, RuntimeError) as error:
+            writer.close()  # Flush the shards written so far before crashing on a bad input.
+            raise ConversionError(path) from error
+        writer.add_bytes(data, str(relative.with_suffix(".wav")))
     writer.close()
 
 
@@ -212,6 +225,7 @@ def reindex_shards(output: str | Path, *, prefix: str = "shard") -> list[Path]:
 
 
 def _archive_paths(source: Path) -> list[Path]:
+    source = source.resolve()
     if source.is_dir():
         return sorted(source.rglob("*.tar"))
     if tarfile.is_tarfile(source):
