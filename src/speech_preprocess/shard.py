@@ -93,7 +93,9 @@ def bytes_from_archive(archive: Path | str, offset: int, size: int) -> bytes:
 def _to_wav_bytes(path: Path) -> bytes:
     samples = AudioDecoder(path).get_all_samples()
     encoder = AudioEncoder(samples.data, sample_rate=samples.sample_rate)
-    return bytes(encoder.to_tensor("wav", sample_rate=SAMPLE_RATE, num_channels=1))
+    buffer = io.BytesIO()
+    encoder.to_file_like(buffer, "wav", sample_rate=SAMPLE_RATE, num_channels=1)
+    return buffer.getvalue()
 
 
 # ---------
