@@ -12,7 +12,9 @@ Two stages, both distributed across SLURM tasks/array jobs when available:
 import argparse
 import io
 import mmap
+import re
 import tarfile
+from collections import defaultdict
 from pathlib import Path
 
 import polars as pl
@@ -26,6 +28,10 @@ from .core import SAMPLE_RATE, distributed_worker, split_for_distributed
 __all__ = ["reindex_shards", "shard_dataset", "write_manifest"]
 
 MANIFEST_FIELDS = ["fileid", "path", "num_samples", "archive", "byte_offset", "byte_size"]
+
+# Per-worker shards are ``{prefix}-{worker}-{shard}.tar``; reindexed shards are ``{prefix}-{hex}.tar``.
+WORKER_SHARD = re.compile(r"^(?P<prefix>.+)-\d+-\d+\.tar$")
+REINDEXED_SHARD = re.compile(r"^(?P<prefix>.+)-[0-9a-f]+\.tar$")
 
 
 def worker_id() -> int:
@@ -192,30 +198,46 @@ def shard_dataset(
     writer.close()
 
 
-def reindex_shards(output: str | Path, *, prefix: str = "shard") -> list[Path]:
-    """Collapse the per-worker shard names into a single, contiguous hexadecimal index.
+def _reindexed_prefix(name: str) -> str | None:
+    """Return the prefix if ``name`` is an already-reindexed archive, else ``None``."""
+    if WORKER_SHARD.match(name):
+        return None
+    match = REINDEXED_SHARD.match(name)
+    return match["prefix"] if match else None
+
+
+def reindex_shards(output: str | Path) -> list[Path]:
+    """Collapse per-worker shard names into a single, contiguous hexadecimal index, per prefix.
 
     ``shard_dataset`` names archives ``{prefix}-{worker:05d}-{shard:05d}.tar`` so that concurrent
-    workers never collide. Once every worker has finished, this renames them to
-    ``{prefix}-{index:0Nx}.tar`` with one global index (sorted by their original name), so the
-    archive set is numbered contiguously. Run once, from a single process, after the distributed
+    workers never collide. Once every worker has finished, this scans ``output``, groups the
+    archives by the ``{prefix}`` embedded in their name, and renames each group to
+    ``{prefix}-{index:0Nx}.tar`` with one global index (sorted by original name). Several prefixes
+    living in the same directory are reindexed independently. A prefix that has already been
+    reindexed — a single-index ``{prefix}-{hex}.tar`` archive exists for it — is skipped, so the
+    step is idempotent and safe to re-run. Run once, from a single process, after the distributed
     sharding step.
 
     Args:
         output: Directory containing the tar archives produced by ``shard_dataset``.
-        prefix: Prefix of the archive filenames.
 
     Returns:
-        The new archive paths, in index order.
+        The new archive paths, in (prefix, index) order.
     """
     output = Path(output)
-    shards = sorted(output.glob(f"{prefix}-*-*.tar"))
-    width = len(f"{max(len(shards) - 1, 0):x}")
+    done = {prefix for path in output.glob("*.tar") if (prefix := _reindexed_prefix(path.name))}
+    groups: dict[str, list[Path]] = defaultdict(list)
+    for path in output.glob("*.tar"):
+        if (match := WORKER_SHARD.match(path.name)) and match["prefix"] not in done:
+            groups[match["prefix"]].append(path)
     renamed = []
-    for index, shard in enumerate(tqdm(shards)):
-        dest = output / f"{prefix}-{index:0{width}x}.tar"
-        shard.rename(dest)
-        renamed.append(dest)
+    for prefix, shards in sorted(groups.items()):
+        shards.sort()
+        width = len(f"{max(len(shards) - 1, 0):x}")
+        for index, shard in enumerate(tqdm(shards, desc=prefix)):
+            dest = output / f"{prefix}-{index:0{width}x}.tar"
+            shard.rename(dest)
+            renamed.append(dest)
     return renamed
 
 
@@ -310,8 +332,7 @@ def cli() -> None:
     )
 
     p_re = subparsers.add_parser("reindex", help="Collapse per-worker shards into a single hex index")
-    p_re.add_argument("output", help="Directory containing the tar archives to reindex")
-    p_re.add_argument("--prefix", default="shard", help="Prefix of the archive filenames")
+    p_re.add_argument("output", help="Directory containing the tar archives to reindex (all prefixes)")
 
     p_man = subparsers.add_parser("manifest", help="Build a JSONL manifest from tar archives")
     p_man.add_argument("archives", help="Directory of tar archives, or a single tar file")
@@ -331,7 +352,7 @@ def cli() -> None:
             resolve_symlinks=args.resolve_symlinks,
         )
     elif args.command == "reindex":
-        reindex_shards(args.output, prefix=args.prefix)
+        reindex_shards(args.output)
     elif args.command == "manifest":
         write_manifest(args.archives, args.output, extension=args.extension, verify=args.verify)
     else:
