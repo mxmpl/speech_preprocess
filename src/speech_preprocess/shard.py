@@ -158,6 +158,7 @@ def shard_dataset(
     extension: str = ".wav",
     to_wav: bool = False,
     prefix: str = "shard",
+    resolve_symlinks: bool = False,
 ) -> None:
     """Pack a directory of audio files into uncompressed tar archives.
 
@@ -172,6 +173,8 @@ def shard_dataset(
         extension: File extension used to discover audios in ``dataset``.
         to_wav: Transcode each file to WAV before archiving (renames the member to ``.wav``).
         prefix: Prefix for the generated archive filenames.
+        resolve_symlinks: When an input file is a symlink, archive the real file's contents instead
+            of a symlink entry (has no effect with ``to_wav``, which already reads the target).
     """
     root = Path(dataset).resolve()
     output = Path(output)
@@ -181,7 +184,7 @@ def shard_dataset(
     for path in tqdm(paths):
         relative = path.relative_to(root)
         if not to_wav:
-            writer.add_file(path, str(relative))
+            writer.add_file(path.resolve() if resolve_symlinks else path, str(relative))
             continue
         try:
             data = _to_wav_bytes(path)
@@ -303,6 +306,11 @@ def cli() -> None:
     p_shard.add_argument("--extension", default=".wav", help="Extension used to find audios in dataset")
     p_shard.add_argument("--to-wav", action="store_true", help="Transcode files to WAV before archiving")
     p_shard.add_argument("--prefix", default="shard", help="Prefix for the generated archive filenames")
+    p_shard.add_argument(
+        "--resolve-symlinks",
+        action="store_true",
+        help="Archive the real contents of symlinked inputs instead of a symlink entry",
+    )
 
     p_re = subparsers.add_parser("reindex", help="Collapse per-worker shards into a single hex index")
     p_re.add_argument("output", help="Directory containing the tar archives to reindex")
@@ -323,6 +331,7 @@ def cli() -> None:
             extension=args.extension,
             to_wav=args.to_wav,
             prefix=args.prefix,
+            resolve_symlinks=args.resolve_symlinks,
         )
     elif args.command == "reindex":
         reindex_shards(args.output, prefix=args.prefix)
