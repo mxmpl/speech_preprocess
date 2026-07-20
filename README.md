@@ -64,7 +64,7 @@ original annotation.
 ```sh
 speech-preprocess post-process PATH_RTTM PATH_POST_PROCESSED_RTTM \
     --min-duration-on 0.5 \
-    --min-duration-off 0.2 \
+    --min-duration-off 2 \
     --max-duration-on 30.0
 ```
 
@@ -76,10 +76,10 @@ uniform distribution over `[min-duration, max-duration]` discretized in
 
 ```sh
 speech-preprocess subsample PATH_RTTM PATH_SUBSAMPLED_RTTM \
-    --target-hours 100 \
-    --min-duration 1.0 \
+    --target-hours 6000 \
+    --min-duration 0.5 \
     --max-duration 30.0 \
-    [--n-bins 100]
+    [--n-bins 1000]
 ```
 
 ### `segment`
