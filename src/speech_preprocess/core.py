@@ -23,26 +23,29 @@ from tqdm import tqdm
 __all__ = ["post_process_dataset", "read_rttm", "segment_dataset", "subsample_dataset", "vad_dataset", "write_rttm"]
 
 
-def split_for_distributed[T](sequence: Sequence[T]) -> Sequence[T]:
-    if "SLURM_NTASKS" not in os.environ:
-        return sequence
-    rank, world_size = int(os.environ["SLURM_PROCID"]), int(os.environ["SLURM_NTASKS"])
+def distributed_worker() -> tuple[int, int]:
+    """Return ``(worker_id, num_workers)`` for the current SLURM process.
+
+    Combines the srun task rank (``SLURM_PROCID`` / ``SLURM_NTASKS``) with the job-array index
+    (``SLURM_ARRAY_TASK_ID`` / ``SLURM_ARRAY_TASK_COUNT``), so it is correct whether the work is
+    parallelised over srun tasks, over an array of single-task jobs (no ``srun``), or both. Each
+    variable defaults to a single task / single array element when unset, so a plain local run
+    yields ``(0, 1)``.
+    """
+    rank, world_size = int(os.getenv("SLURM_PROCID", "0")), int(os.getenv("SLURM_NTASKS", "1"))
     array_id, num_arrays = int(os.getenv("SLURM_ARRAY_TASK_ID", "0")), int(os.getenv("SLURM_ARRAY_TASK_COUNT", "1"))
     if "SLURM_ARRAY_TASK_ID" in os.environ:
         assert os.environ["SLURM_ARRAY_TASK_MIN"] == "0"
         assert int(os.environ["SLURM_ARRAY_TASK_MAX"]) == num_arrays - 1
+    return array_id * world_size + rank, num_arrays * world_size
 
-    n_total = len(sequence)  # Split by array first
-    files_per_array = math.ceil(n_total / num_arrays)
-    start = array_id * files_per_array
-    end = min(start + files_per_array, n_total)
-    sequence = sequence[start:end]
 
-    n_local = len(sequence)  # Then split by rank within each array
-    files_per_rank = math.ceil(n_local / world_size)
-    start = rank * files_per_rank
-    end = min(start + files_per_rank, n_local)
-    return sequence[start:end]
+def split_for_distributed[T](sequence: Sequence[T]) -> Sequence[T]:
+    worker, num_workers = distributed_worker()
+    if num_workers == 1:
+        return sequence
+    per_worker = math.ceil(len(sequence) / num_workers)
+    return sequence[worker * per_worker : min((worker + 1) * per_worker, len(sequence))]
 
 
 # ------------

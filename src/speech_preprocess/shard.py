@@ -12,7 +12,6 @@ Two stages, both distributed across SLURM tasks/array jobs when available:
 import argparse
 import io
 import mmap
-import os
 import tarfile
 from pathlib import Path
 
@@ -22,7 +21,7 @@ from torchcodec.decoders import AudioDecoder
 from torchcodec.encoders import AudioEncoder
 from tqdm import tqdm
 
-from .core import SAMPLE_RATE, split_for_distributed
+from .core import SAMPLE_RATE, distributed_worker, split_for_distributed
 
 __all__ = ["reindex_shards", "shard_dataset", "write_manifest"]
 
@@ -32,14 +31,10 @@ MANIFEST_FIELDS = ["fileid", "path", "num_samples", "archive", "byte_offset", "b
 def worker_id() -> int:
     """Return a unique index for the current SLURM worker (``0`` when not distributed).
 
-    Mirrors the array-then-rank splitting done by ``split_for_distributed`` so that each worker
-    owns a distinct slice of the file list and can name its outputs without colliding.
+    Shares ``distributed_worker`` with ``split_for_distributed`` so that the slice a worker
+    processes and the index it stamps on its archives can never disagree.
     """
-    if "SLURM_NTASKS" not in os.environ:
-        return 0
-    rank, world_size = int(os.environ["SLURM_PROCID"]), int(os.environ["SLURM_NTASKS"])
-    array_id = int(os.getenv("SLURM_ARRAY_TASK_ID", "0"))
-    return array_id * world_size + rank
+    return distributed_worker()[0]
 
 
 class CompressedArchiveError(Exception):
