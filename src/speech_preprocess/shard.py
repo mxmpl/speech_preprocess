@@ -248,11 +248,19 @@ def reindex_shards(output: str | Path) -> list[Path]:
 
 def _archive_paths(source: Path) -> list[Path]:
     source = source.resolve()
-    if source.is_dir():
-        return sorted(source.rglob("*.tar"))
+    if source.is_dir():  # Only reindexed shards; leftover per-worker archives are ignored.
+        return sorted(path for path in source.rglob("*.tar") if _reindexed_prefix(path.name))
     if tarfile.is_tarfile(source):
         return [source]
     raise ValueError(f"{source} is neither a directory nor a tar file.")
+
+
+def _shard_prefix(name: str) -> str:
+    """Return the ``{prefix}`` of a shard archive, whether per-worker or reindexed."""
+    for pattern in (WORKER_SHARD, REINDEXED_SHARD):
+        if match := pattern.match(name):
+            return match["prefix"]
+    return name.removesuffix(".tar")
 
 
 def _manifest_records(archive: Path, extension: str, *, verify: bool) -> list[dict[str, object]]:
@@ -281,27 +289,37 @@ def write_manifest(
     extension: str = ".wav",
     verify: bool = False,
 ) -> None:
-    """Build a JSONL manifest from a directory of tar archives (or a single archive).
+    """Build per-prefix JSONL manifests from a directory of tar archives (or a single archive).
 
     Each record locates one audio file by archive, byte offset and byte size, alongside its number
-    of samples, so the raw bytes can later be memory-mapped without unpacking the archive. Archives
-    are split across SLURM workers when distributed; every worker appends its records to the single
-    ``output`` file, serialising the appends with a file lock.
+    of samples, so the raw bytes can later be memory-mapped without unpacking the archive. Records
+    are grouped by the ``{prefix}`` of their archive (see :func:`shard_dataset`) and written to
+    ``output / {prefix}.jsonl``. Only reindexed shards (``{prefix}-{hex}.tar``, see
+    :func:`reindex_shards`) are considered when ``archives`` is a directory; leftover per-worker
+    archives are ignored. Archives are split across SLURM workers when distributed; every worker
+    appends to the relevant per-prefix file, serialising the appends with a file lock.
 
     Args:
-        archives: Directory containing the tar archives, or a single tar file.
-        output: Path to the output ``.jsonl`` manifest; records are appended to it.
+        archives: Directory of reindexed tar archives, or a single tar file.
+        output: Output directory; a ``{prefix}.jsonl`` manifest is appended to per prefix.
         extension: Only members with this extension are included.
         verify: Check that every decoded sample count is an integer.
     """
     paths = split_for_distributed(_archive_paths(Path(archives)))
-    records = [record for archive in tqdm(paths) for record in _manifest_records(archive, extension, verify=verify)]
-    if not records:
+    grouped: dict[str, list[dict[str, object]]] = defaultdict(list)
+    for archive in tqdm(paths):
+        records = _manifest_records(archive, extension, verify=verify)
+        if records:
+            grouped[_shard_prefix(archive.name)].extend(records)
+    if not grouped:
         raise NoAudioFileError(archives, extension)
     output = Path(output)
-    content = pl.from_dicts(records).select(MANIFEST_FIELDS).write_ndjson()
-    with FileLock(f"{output}.lock"), output.open("a", encoding="utf-8") as file:
-        file.write(content)
+    output.mkdir(parents=True, exist_ok=True)
+    for prefix, records in grouped.items():
+        content = pl.from_dicts(records).select(MANIFEST_FIELDS).write_ndjson()
+        dest = output / f"{prefix}.jsonl"
+        with FileLock(f"{dest}.lock"), dest.open("a", encoding="utf-8") as file:
+            file.write(content)
 
 
 # ---------
@@ -336,7 +354,7 @@ def cli() -> None:
 
     p_man = subparsers.add_parser("manifest", help="Build a JSONL manifest from tar archives")
     p_man.add_argument("archives", help="Directory of tar archives, or a single tar file")
-    p_man.add_argument("output", help="Output .jsonl manifest path")
+    p_man.add_argument("output", help="Output directory for the per-prefix {prefix}.jsonl manifests")
     p_man.add_argument("--extension", default=".wav", help="Only include members with this extension")
     p_man.add_argument("--verify", action="store_true", help="Check that every sample count is an integer")
 
