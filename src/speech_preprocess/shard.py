@@ -19,7 +19,7 @@ from pathlib import Path
 
 import polars as pl
 from filelock import FileLock
-from torchcodec.decoders import AudioDecoder
+from torchcodec.decoders import AudioDecoder, WavDecoder
 from torchcodec.encoders import AudioEncoder
 from tqdm import tqdm
 
@@ -75,14 +75,8 @@ def parse_size(value: str) -> int:
     return int(text)
 
 
-def num_samples(source: str | Path | bytes, *, verify: bool = False) -> int:
-    """Return the number of samples of an audio file, read from its header."""
-    metadata = AudioDecoder(source).metadata
-    samples = metadata.duration_seconds_from_header * metadata.sample_rate
-    if verify and not samples.is_integer():
-        where = f" in {source}" if isinstance(source, (str, Path)) else ""
-        raise ValueError(f"Number of samples {samples} is not an integer{where}")
-    return int(samples)
+def num_samples_wav(source: str | Path | bytes) -> int:
+    return int(WavDecoder(source).get_all_samples().data.size(1))
 
 
 def bytes_from_archive(archive: Path | str, offset: int, size: int) -> bytes:
@@ -272,7 +266,7 @@ def _manifest_records(archive: Path, extension: str, *, verify: bool) -> list[di
         {
             "fileid": Path(info.name).stem,
             "path": info.name,
-            "num_samples": num_samples(bytes_from_archive(archive, info.offset_data, info.size), verify=verify),
+            "num_samples": num_samples_wav(bytes_from_archive(archive, info.offset_data, info.size), verify=verify),
             "archive": str(archive),
             "byte_offset": info.offset_data,
             "byte_size": info.size,
