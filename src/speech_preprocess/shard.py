@@ -257,7 +257,7 @@ def _shard_prefix(name: str) -> str:
     return name.removesuffix(".tar")
 
 
-def _manifest_records(archive: Path, extension: str, *, verify: bool) -> list[dict[str, object]]:
+def _manifest_records(archive: Path, extension: str) -> list[dict[str, object]]:
     with tarfile.open(archive, "r") as tar:
         if tar.mode != "r":
             raise CompressedArchiveError
@@ -266,7 +266,7 @@ def _manifest_records(archive: Path, extension: str, *, verify: bool) -> list[di
         {
             "fileid": Path(info.name).stem,
             "path": info.name,
-            "num_samples": num_samples_wav(bytes_from_archive(archive, info.offset_data, info.size), verify=verify),
+            "num_samples": num_samples_wav(bytes_from_archive(archive, info.offset_data, info.size)),
             "archive": str(archive),
             "byte_offset": info.offset_data,
             "byte_size": info.size,
@@ -302,7 +302,7 @@ def write_manifest(
     paths = split_for_distributed(_archive_paths(Path(archives)))
     grouped: dict[str, list[dict[str, object]]] = defaultdict(list)
     for archive in tqdm(paths):
-        records = _manifest_records(archive, extension, verify=verify)
+        records = _manifest_records(archive, extension)
         if records:
             grouped[_shard_prefix(archive.name)].extend(records)
     if not grouped:

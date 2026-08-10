@@ -6,4 +6,4 @@
 #SBATCH --array=0-63
 
 set -euo pipefail
-speech-shard shard $SCRATCH/data/$4/$1/$2 $SCRATCH/data_sharded/$4/$1/ --size 1G --prefix $1-$2 --resolve-symlinks --to-wav --extension $3
+speech-shard shard $SCRATCH/data/core/Libri-light/train-6000h $SCRATCH/data_sharded --size 1G --prefix Libri-light-train-6000h --resolve-symlinks --to-wav --extension .flac

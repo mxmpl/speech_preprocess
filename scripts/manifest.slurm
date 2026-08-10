@@ -6,4 +6,4 @@
 #SBATCH --array=0-511
 
 set -euo pipefail
-speech-shard manifest $1 $SCRATCH/data_sharded --verify
+speech-shard manifest $1 $SCRATCH/data/sharded --verify

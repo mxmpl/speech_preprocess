@@ -501,9 +501,9 @@ def segment_dataset(
     for (uri,), segments in pbar:
         pbar.set_description(uri)
         _, decoder = dataset[dataset.uri_to_index[uri]]
+        subdir = str(dataset.paths[dataset.uri_to_index[uri]].parent.relative_to(Path(path_audios)))
         for i, (onset, offset) in enumerate(segments.sort("Turn Onset")[["Turn Onset", "Turn Offset"]].iter_rows()):
-            lang, year = uri.split("_")[-1], uri[:4]
-            dest = output / lang / year / template.format(uri=uri, i=i, num_zeros=num_zeros, extension=extension)
+            dest = output / subdir / template.format(uri=uri, i=i, num_zeros=num_zeros, extension=extension)
             if dest.is_file():
                 continue
             dest.parent.mkdir(parents=True, exist_ok=True)
